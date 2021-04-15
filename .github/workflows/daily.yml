@@ -19,7 +19,7 @@ jobs:
         #to test in canary add in canary here.....
         target-branch: [main, release-1.1, release-1.2]
     env:
-      MESSAGE_PAYLOAD_FILE: /tmp/message
+      AUDIT_SUMMARY_FILE: /tmp/summary
     steps:
       - uses: actions/checkout@v2
         with:
@@ -32,12 +32,25 @@ jobs:
         # 1. RUSTSEC-2021-0020 - Not impacted, see #7723
         # 2. RUSTSEC-2020-0146 - Not impacted, see #7826
         run: |
-          cargo audit --ignore RUSTSEC-2021-0020 --ignore RUSTSEC-2020-0146 >> $MESSAGE_PAYLOAD_FILE
-      - uses: ./.github/actions/slack-file
-        with:
-          webhook: ${{ secrets.WEBHOOK_AUDIT }}
-          payload-file: ${{ env.MESSAGE_PAYLOAD_FILE }}
+          cargo audit --ignore RUSTSEC-2021-0020 --ignore RUSTSEC-2020-0146 > $AUDIT_SUMMARY_FILE
+      - uses: actions/github-script@v3
         if: ${{ failure() }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const title = `RUSTSEC in dependencies in branch ${{ matrix.target-branch }}`
+            const fsp = require('fs').promises
+            summary = await fsp.readFile('${{ env.AUDIT_SUMMARY_FILE }}', 'utf-8')
+            const job_url = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`
+            const body = `Found RUSTSEC in dependencies in job ${job_url}
+            \`\`\`
+            ${summary}
+            \`\`\`
+            `
+            const assignees = [`@diem/diem-core-oncall`]
+            const labels = [`dependencies`]
+            const script = require(`${process.env.GITHUB_WORKSPACE}/.github/actions/create-issue/action-script.js`)
+            await script({github, context, title, body, assignees, labels})
       - uses: ./.github/actions/build-teardown
 
   coverage:
