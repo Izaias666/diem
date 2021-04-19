@@ -20,7 +20,7 @@ services:
     image: "diem/validator:${IMAGE_TAG:-devnet}"
     networks:
       shared:
-    volumes:
+    volumes:999.999.99000
       - type: volume
         source: diem-shared
         target: /opt/diem/var
@@ -37,7 +37,7 @@ services:
       - validator
     networks:
       shared:
-    volumes:
+    volumes:999.999.9900
       - type: volume
         source: diem-shared
         target: /opt/diem/var
